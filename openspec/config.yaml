@@ -1,0 +1,71 @@
+# openspec/config.yaml — Configuración SDD de py-video-subtitler
+# Creado por sdd-init (2026-09-13). Contexto derivado de PLAN.md (plan
+# aprobado por el usuario) y de las convenciones del repo hermano
+# py-video-converter (referencia de SOLO LECTURA en
+# D:/Desarrollo/py-video-converter).
+schema: spec-driven
+
+context: |
+  Proyecto: CLI personal de Python (single-file, subtitler.py) que genera un
+  .srt en español junto a cada video de input/ (o rutas pasadas como
+  argumento): video.mp4 -> video.srt, listo para VLC/MPC-HC.
+
+  Tech stack: Python 3.11.15 (venv .venv, aún no creado), faster-whisper
+  1.2.1 (CPU, int8), argostranslate 1.11.0 (offline tras primera descarga),
+  ffmpeg/ffprobe en PATH (scoop), Windows, GPU AMD sin CUDA -> solo CPU.
+
+  Architecture: archivo único subtitler.py con registros al tope (estilo
+  convert.py). Pipeline por archivo: sondeo ffprobe (JSON) -> extracción de
+  pista de subtítulos embebida (si existe y no --no-extract) ->
+  transcripción faster-whisper con VAD y autodetección de idioma ->
+  traducción Argos si el origen no es español (par directo o pivote vía
+  inglés; sin camino -> WARN, nunca rompe la corrida) -> escritura SRT
+  (UTF-8 con BOM + CRLF, líneas ~42 caracteres, máx 2, temp + rename
+  atómico). .srt existente -> SKIP; --force regenera. Códigos de salida 0/1.
+
+  Testing: suite de humo con biblioteca estándar test_smoke.py, estilo
+  py-video-converter (muestras sintéticas lavfi en tests_tmp/, subprocess
+  con listas de argumentos, unit tests en subproceso, tests_tmp/ se elimina
+  al salir, RESULT N passed/M failed, exit 0/1). Sin pytest.
+  La transcripción real es opt-in vía variable de entorno para no
+  descargar modelos en cada smoke. El venv todavía no existe: el
+  test_command es el comando declarado para cuando exista.
+
+  Style: README, docstrings y comentarios en español; subprocess con listas
+  (seguro para Windows); selector interactivo sobre input/ (1 3 5-7, a, q);
+  convenciones espejo de py-video-converter. App personal: SDD liviano, sin
+  sobre-ingeniería. PLAN.md contiene las decisiones de producto CERRADAS.
+
+rules:
+  proposal:
+    - PLAN.md cierra el producto: no reabrir motor, idiomas ni alcance
+    - Un solo cambio SDD liviano; incluir plan de reversión breve
+  specs:
+    - Usar Given/When/Then para escenarios
+    - Usar palabras clave RFC 2119 (MUST, SHALL, SHOULD, MAY)
+    - Cubrir: sondeo sin audio (error por archivo, la corrida sigue)
+    - Cubrir: extracción embebida (es / no-es / solo bitmap)
+    - Cubrir: transcripción + traducción Argos (directo o pivote)
+    - Cubrir: formato SRT (BOM+CRLF, ~42 chars, numeración 1..n)
+    - Cubrir: SKIP/--force, --dry-run y códigos de salida 0/1
+  design:
+    - Decisiones con justificación breve; explícitamente sin sobre-ingeniería
+    - Single-file con registros al tope (estilo convert.py)
+  tasks:
+    - Agrupar por fase con numeración jerárquica
+    - Tareas completables en una sesión
+  apply:
+    guidelines:
+      - Espejar py-video-converter (solo lectura): single-file, español
+      - Subprocess con listas de argumentos (seguro para Windows)
+      - SRT atómico (temp + rename) y códigos de salida 0/1
+    tdd: true            # strict TDD: RED-GREEN-REFACTOR vía test_smoke.py
+    # Forma exacta del converter (ejecutar desde la raíz del proyecto).
+    test_command: ".venv/Scripts/python.exe test_smoke.py"
+  verify:
+    test_command: ".venv/Scripts/python.exe test_smoke.py"
+    build_command: ".venv/Scripts/python.exe -m py_compile subtitler.py"
+    # App personal: sin umbral de cobertura (anti-sobre-ingeniería).
+    coverage_threshold: 0
+  archive:
+    - Avisar antes de mezclar deltas destructivos

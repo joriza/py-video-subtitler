@@ -1,0 +1,5 @@
+# Dependencias de py-video-subtitler (pines exactos; decisiones cerradas en PLAN.md).
+# Motor de transcripción local (CPU, int8; decodifica audio con PyAV interno).
+faster-whisper==1.2.1
+# Traducción local offline (par directo o pivote vía inglés).
+argostranslate==1.11.0
