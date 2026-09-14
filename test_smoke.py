@@ -774,7 +774,7 @@ UNIT_C10_REG_SRC = '''\
 """Unit 2.9: registros, validación y dedup (S31/S32) contra el subtitler real."""
 
 import io
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 import subtitler
@@ -806,9 +806,28 @@ assert "--target" in mensaje and "es" in mensaje, mensaje
 del subtitler.TARGET_LANGS["en"]
 
 # Dedup de entradas por expanduser().resolve(), en orden de primera aparición.
-raws = ["v.mp4", "./v.mp4", "otro.mp4", "v.mp4"]
+# Archivos reales en tests_tmp para probar que la validación de existencia funciona.
+tmp = Path("tests_tmp")
+tmp.mkdir(exist_ok=True)
+(tmp / "v.mp4").write_bytes(b"fake video")
+(tmp / "otro.mp4").write_bytes(b"fake video 2")
+raws = [str(tmp / "v.mp4"), str(tmp / "./v.mp4"), str(tmp / "otro.mp4"), str(tmp / "v.mp4")]
 res = subtitler.resolve_inputs(Path("input"), raws)
-assert res == [Path("v.mp4").expanduser().resolve(), Path("otro.mp4").expanduser().resolve()], res
+assert res == [(tmp / "v.mp4").resolve(), (tmp / "otro.mp4").resolve()], res
+
+# Archivos no existentes se omiten con WARN (fail-fast).
+buf = io.StringIO()
+with redirect_stdout(buf):
+    res2 = subtitler.resolve_inputs(Path("input"), ["no_existe.mp4", str(tmp / "v.mp4")])
+assert res2 == [(tmp / "v.mp4").resolve()], res2
+assert "no encontrado" in buf.getvalue(), buf.getvalue()
+
+# Directorios se omiten con WARN.
+buf3 = io.StringIO()
+with redirect_stdout(buf3):
+    res3 = subtitler.resolve_inputs(Path("input"), [str(tmp)])
+assert res3 == [], res3
+assert "no es un archivo regular" in buf3.getvalue(), buf3.getvalue()
 
 print("unit 2.9 ok")
 '''
@@ -854,6 +873,7 @@ print("unit 3.5 plan ok")
 UNIT_S27_SRC = '''\
 """Unit S27: main retorna 130 ante KeyboardInterrupt (handler por unit)."""
 
+from pathlib import Path
 import subtitler
 
 
@@ -862,7 +882,11 @@ def _raise_ki(src, options):
 
 
 subtitler.subtitlar_one = _raise_ki
-assert subtitler.main(["cualquier.mp4"]) == 130
+# Crear archivo temporal para que resolve_inputs lo valide correctamente.
+_tmp = Path("tests_tmp")
+_tmp.mkdir(exist_ok=True)
+(_tmp / "ki_check.mp4").write_bytes(b"fake")
+assert subtitler.main([str(_tmp / "ki_check.mp4")]) == 130
 
 print("unit S27 ok")
 '''

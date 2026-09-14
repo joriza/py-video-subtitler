@@ -427,6 +427,72 @@ _LANG3_TO_LANG1 = {
     "rus": "ru",
     "jpn": "ja",
     "zho": "zh",
+    "ara": "ar",
+    "hin": "hi",
+    "kor": "ko",
+    "tur": "tr",
+    "vie": "vi",
+    "tha": "th",
+    "ind": "id",
+    "msa": "ms",
+    "tan": "ta",
+    "tel": "te",
+    "mar": "mr",
+    "ben": "bn",
+    "urd": "ur",
+    "pan": "pa",
+    "guj": "gu",
+    "kan": "kn",
+    "mal": "ml",
+    "ori": "or",
+    "asm": "as",
+    "nep": "ne",
+    "sin": "si",
+    "khm": "km",
+    "lao": "lo",
+    "bur": "my",
+    "kin": "rw",
+    "som": "so",
+    "swa": "sw",
+    "zho": "zh",
+    "yue": "zh",
+    "ces": "cs",
+    "pol": "pl",
+    "slk": "sk",
+    "hun": "hu",
+    "ron": "ro",
+    "bul": "bg",
+    "srp": "sr",
+    "hrv": "hr",
+    "slv": "sl",
+    "lit": "lt",
+    "lav": "lv",
+    "est": "et",
+    "fin": "fi",
+    "swe": "sv",
+    "dan": "da",
+    "nor": "no",
+    "isl": "is",
+    "ell": "el",
+    "heb": "he",
+    "yid": "yi",
+    "afr": "af",
+    "kat": "ka",
+    "aze": "az",
+    "kaz": "kk",
+    "uzb": "uz",
+    "tuk": "tk",
+    "mon": "mn",
+    "tgl": "tl",
+    "may": "ms",
+    "cym": "cy",
+    "alb": "sq",
+    "mkd": "mk",
+    "sqi": "sq",
+    "snd": "ku",
+    "div": "dv",
+    "fry": "fy",
+    "lat": "la",
 }
 
 
@@ -549,11 +615,13 @@ def apply_translation(
         return TranslationOutcome(cues, None, None)
     if src == target:
         return TranslationOutcome(cues, src, cues)
-    route = resolve_translation_route(src, target, installed_argos_pairs())
+    installed = installed_argos_pairs()
+    route = resolve_translation_route(src, target, installed)
     if route.kind == "none":
         candidates = download_candidates(src, target)
         if ensure_pairs_installed(candidates):
-            route = resolve_translation_route(src, target, installed_argos_pairs())
+            installed = installed_argos_pairs()
+            route = resolve_translation_route(src, target, installed)
     if route.kind == "none":
         say(
             f"WARN sin ruta de traducción {src}→{target} en los pares instalados; "
@@ -887,12 +955,21 @@ def resolve_inputs(input_dir: Path, raw_inputs: Sequence[str]) -> list[Path]:
     """Devuelve la lista deduplicada de archivos a procesar (C10).
 
     Deduplica por ``expanduser().resolve()`` conservando el orden de primera
-    aparición; sin argumentos delega en el selector interactivo.
+    aparición; sin argumentos delega en el selector interactivo. Valida que
+    cada ruta exista y sea un archivo regular; emite WARN por archivos
+    problemáticos y los omite sin abortar la corrida.
     """
     if raw_inputs:
         seen: dict[Path, None] = {}
         for raw in raw_inputs:
-            seen.setdefault(Path(raw).expanduser().resolve(), None)
+            resolved = Path(raw).expanduser().resolve()
+            if not resolved.exists():
+                say(f"WARN archivo no encontrado, se omite: {raw}")
+                continue
+            if not resolved.is_file():
+                say(f"WARN no es un archivo regular, se omite: {raw}")
+                continue
+            seen.setdefault(resolved, None)
         return list(seen)
     return interactive_select(input_dir)
 
